@@ -1,20 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 
-// TODO make it so the text isnt uneditable as soon as its filled
+const WordleLine = ({ onSubmit, word, colors }) => {
 
-const WordleLine = ({ onSubmit }) => {
-    const [localWord, setLocalWord] = useState(Array(5).fill(''));
-    const [localColors, setLocalColors] = useState(Array(5).fill('grey'));
+    if (!word) {
+        word = Array(5).fill('');
+    }
+    else {
+        word = word.split('');
+    }
+    const [localWord, setLocalWord] = useState(word);
+
+    if (!colors) {
+        colors = Array(5).fill('grey');
+    }
+    const [localColors, setLocalColors] = useState(colors);
+    
     const [submitted, setSubmitted] = useState(false);
     const [isWordFilled, setIsWordFilled] = useState(false);
-    const [isSubmitted, setIsSubmitted] = useState(false);
     const [sessionId, setSessionId] = useState(null);
     const inputRefs = useRef([]);
 
     useEffect(() => {
         const storedSessionId = localStorage.getItem('sessionId');
         setSessionId(storedSessionId);
+        console.log("WordLine Session ID:", storedSessionId);
     }, []);
 
     const handleChange = (e, index) => {
@@ -72,23 +82,31 @@ const WordleLine = ({ onSubmit }) => {
             }).join('');
 
             console.log("Data sent to /handleword:", { word: wordString, colors: colorsString, session_id: sessionId });
+            const storedSessionId = localStorage.getItem('sessionId');
+            setSessionId(storedSessionId);
+            console.log("Handlesub Session ID:", sessionId);
+            try {
+                const response = await axios.post("http://localhost:5000/handleword", {
+                    word: wordString,
+                    colors: colorsString,
+                    session_id: sessionId
+                }, {
+                    headers: { "Content-Type": "application/json" }
+                });
+                console.log("Data sent to /handleword:", { word: wordString, colors: colorsString, session_id: sessionId });
 
-            const response = await fetch("/handleword", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({ word: wordString, colors: colorsString, session_id: sessionId })
-            });
-            console.log("Data sent to /handleword:", { word: wordString, colors: colorsString, session_id: sessionId})
-
-            const result = await response.json();
-            if (result.status === "success") {
-                setSubmitted(true);
-            }
-            if (localWord.every(letter => letter !== '')) {
-                setIsWordFilled(true);
+                const result = response.data;
+                if (result.status === "success") {
+                    setSubmitted(true);
+                }
+                if (localWord.every(letter => letter !== '')) {
+                    setIsWordFilled(true);
+                }
+            } catch (error) {
+                console.error("Error sending data to /handleword:", error);
             }
         }
-        
+
         if (onSubmit && isWordFilled) {
             onSubmit();
         }
@@ -106,7 +124,7 @@ const WordleLine = ({ onSubmit }) => {
                     onClick={() => handleClick(index)}
                     ref={el => inputRefs.current[index] = el}
                     maxLength={1}
-                    readOnly={isWordFilled}
+                    readOnly={submitted}
                     style={{
                         width: '40px',
                         height: '40px',
@@ -117,9 +135,9 @@ const WordleLine = ({ onSubmit }) => {
                     }}
                 />
             ))}
-            {!submitted && (
-                <button onClick={handleSubmit}>Submit</button>
-            )}
+            <button onClick={handleSubmit} disabled={submitted}>
+                Submit
+            </button>
         </div>
     );
 }

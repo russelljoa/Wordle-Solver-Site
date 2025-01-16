@@ -1,71 +1,59 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
-function App() {
-  const url = "http://localhost:5000"
-  const [data, setData] = useState([{}])
-  const [sessionId, setSessionId] = useState(localStorage.getItem('sessionId'))
+function Session({ reset }) {
+  const url = "http://localhost:5000";
+  const [sessionId, setSessionId] = useState(localStorage.getItem('sessionId'));
 
   useEffect(() => {
-    // Check if session ID is already set
     if (!sessionId) {
-      // Fetch session ID from the server using POST
       fetch(`${url}/session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ /* your data if needed */ }),
-      }).then(
-        res => res.json()
-      ).then(
-        sessionData => {
-          setSessionId(sessionData.id)
-          localStorage.setItem('sessionId', sessionData.id)
-          console.log("Session ID:", sessionData.id)
-        }
-      )
+        body: JSON.stringify({}),
+      }).then(res => res.json()).then(sessionData => {
+        setSessionId(sessionData.id);
+        localStorage.setItem('sessionId', sessionData.id);
+        console.log("Session ID:", sessionData.id);
+      });
     }
+  }, []);
 
-  }, [sessionId])
-
-  const refreshSession = () => {
+  const refreshSession = async () => {
     if (sessionId) {
-      // Send a POST request to delete the current session
-      fetch(`${url}/deletesession`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sessionId }),
-      }).then(() => {
-        // Fetch a new session ID from the server using POST
-        fetch(`${url}/session`, {
-          method: 'POST',
+      try {
+        await axios.post(`${url}/deletesession`, { sessionId: sessionId }, {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ /* your data if needed */ }),
-        }).then(
-          res => res.json()
-        ).then(
-          sessionData => {
-            setSessionId(sessionData.id)
-            localStorage.setItem('sessionId', sessionData.id)
-            console.log("New Session ID:", sessionData.id)
-          }
-        )
-      })
+        });
+
+        const response = await axios.post(`${url}/session`, {}, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const sessionData = response.data;
+        setSessionId(sessionData.id);
+        localStorage.setItem('sessionId', sessionData.id);
+        console.log("New Session ID:", sessionData.id);
+
+        reset(); // calls the reset function from parent
+      } catch (error) {
+        console.error("Error refreshing session:", error);
+      }
     }
-  }
+  };
 
   return (
     <div>
       <p>Session ID: {sessionId}</p>
       <button onClick={refreshSession}>Restart Solver</button>
-      
-      {/* other components */}
     </div>
-  )
+  );
 }
 
-export default App
+export default Session;
